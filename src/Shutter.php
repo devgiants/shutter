@@ -189,7 +189,9 @@ class Shutter {
 			} else {
 				$linkedGpo->reset();
 				// Trigger timer cancellation to avoid unwanted effects if numerous input trigger
-				$this->loop->cancelTimer($this->timer);
+				if($this->timer instanceof TimerInterface) {
+					$this->loop->cancelTimer($this->timer);
+				}
 			}
 		});
 	}
