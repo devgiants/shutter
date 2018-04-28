@@ -1,0 +1,30 @@
+{
+  "name": "devgiants/shutter",
+  "type": "library",
+  "description": "Represent a shutter composed with GPIO from devgiants/filesystem/gpio",
+  "keywords": ["php", "gpio", "iot", "shutter"],
+  "homepage": "https://github.com/devgiants/shutter",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Nicolas BONNIOT",
+      "email": "nicolas@devgiants.fr"
+    }
+  ],
+  "require": {
+    "devgiants/filesystem-gpio": "^0.2.1",
+    "devgiants/mosquitto-clients-php-react-wrapper": "^0.0.4"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "autoload": {
+    "psr-4": {
+      "Devgiants\\Shutter\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Devgiants\\Shutter\\Tests\\": "tests"
+    }
+  }
+}
