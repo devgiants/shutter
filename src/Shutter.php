@@ -93,6 +93,8 @@ class Shutter {
 		string $mqttTopic
 	): Shutter {
 		// TODO checks
+
+		// Create shutter
 		$shutter = new static(
 			$inputOpen,
 			$inputClose,
@@ -103,6 +105,9 @@ class Shutter {
 			$mqttClient,
 			$mqttTopic
 		);
+
+		// Register MQTT operations
+		$shutter->registerMqtt();
 
 		return $shutter;
 	}
@@ -140,8 +145,10 @@ class Shutter {
 	}
 
 
+	/**
+	 * Handle MQTT topic registration and GPO invert with timer logic
+	 */
 	protected function registerMqtt(): void {
-
 		$this->mqttClient->subscribe( $this->mqttTopic, function ( $message ) {
 			$message = trim( $message );
 			if ( static::OPEN === $message ) {
@@ -149,16 +156,15 @@ class Shutter {
 				$this->outputOpen->set();
 
 				$this->timer = $this->loop->addTimer( $this->completeMovementDuration, function () {
-					$this->outputOpen->set();
+					$this->outputOpen->reset();
 				} );
 			} else if ( static::CLOSE === $message ) {
 				$this->outputOpen->reset();
 				$this->outputClose->set();
 
-				//				setTimerForEnding($board->getLoop(), $gpoClose);
-				//				/*                $board->getLoop()->addTimer(COMPLETE_SHUTTER_MOVEMENT_DURATION, function () use ($gpoClose) {
-				//										$gpoClose->reset();
-				//								});*/
+				$this->timer = $this->loop->addTimer( $this->completeMovementDuration, function () {
+					$this->outputClose->reset();
+				} );
 			}
 		} );
 
