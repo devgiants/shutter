@@ -5,18 +5,21 @@
  * Date: 27/04/18
  * Time: 14:17
  */
+
 namespace Devgiants\Shutter;
 
 use Devgiants\FilesystemGPIO\Model\GPIO\GPI;
 use Devgiants\FilesystemGPIO\Model\GPIO\GPO;
 use Devgiants\MosquittoClientsReactWrapper\Client\MosquittoClientsReactWrapper;
 use React\EventLoop\LoopInterface;
+use React\EventLoop\Timer\TimerInterface;
 
 class Shutter {
 
 	const OPEN = 'open';
 
 	const CLOSE = 'close';
+
 	/**
 	 * @var GPI $inputOpen
 	 *
@@ -56,6 +59,16 @@ class Shutter {
 	 */
 	protected $mqttClient;
 
+	/**
+	 * @var string
+	 */
+	protected $mqttTopic;
+
+	/**
+	 * @var TimerInterface
+	 */
+	protected $timer;
+
 
 	/**
 	 * @param GPI $inputOpen
@@ -65,6 +78,7 @@ class Shutter {
 	 * @param int $completeMovementDuration
 	 * @param LoopInterface $loop
 	 * @param MosquittoClientsReactWrapper $mqttClient
+	 * @param string $mqttTopic
 	 *
 	 * @return static
 	 */
@@ -75,18 +89,22 @@ class Shutter {
 		GPO $outputClose,
 		int $completeMovementDuration,
 		LoopInterface $loop,
-		MosquittoClientsReactWrapper $mqttClient
-	) {
+		MosquittoClientsReactWrapper $mqttClient,
+		string $mqttTopic
+	): Shutter {
 		// TODO checks
-		return new static(
+		$shutter = new static(
 			$inputOpen,
-		$inputClose,
-		$outputOpen,
-		$outputClose,
-		$completeMovementDuration,
-		$loop,
-		$mqttClient
+			$inputClose,
+			$outputOpen,
+			$outputClose,
+			$completeMovementDuration,
+			$loop,
+			$mqttClient,
+			$mqttTopic
 		);
+
+		return $shutter;
 	}
 
 	/**
@@ -99,6 +117,7 @@ class Shutter {
 	 * @param int $completeMovementDuration
 	 * @param LoopInterface $loop
 	 * @param MosquittoClientsReactWrapper $mqttClient
+	 * @param string $mqttTopic
 	 */
 	private function __construct(
 		GPI $inputOpen,
@@ -107,14 +126,41 @@ class Shutter {
 		GPO $outputClose,
 		int $completeMovementDuration,
 		LoopInterface $loop,
-		MosquittoClientsReactWrapper $mqttClient
+		MosquittoClientsReactWrapper $mqttClient,
+		string $mqttTopic
 	) {
-		$this->inputOpen = $inputOpen;
-		$this->inputClose = $inputClose;
-		$this->outputOpen = $outputOpen;
-		$this->outputClose = $outputClose;
+		$this->inputOpen                = $inputOpen;
+		$this->inputClose               = $inputClose;
+		$this->outputOpen               = $outputOpen;
+		$this->outputClose              = $outputClose;
 		$this->completeMovementDuration = $completeMovementDuration;
-		$this->loop = $loop;
-		$this->mqttClient = $mqttClient;
+		$this->loop                     = $loop;
+		$this->mqttClient               = $mqttClient;
+		$this->mqttTopic                = $mqttTopic;
+	}
+
+
+	protected function registerMqtt(): void {
+
+		$this->mqttClient->subscribe( $this->mqttTopic, function ( $message ) {
+			$message = trim( $message );
+			if ( static::OPEN === $message ) {
+				$this->outputClose->reset();
+				$this->outputOpen->set();
+
+				$this->timer = $this->loop->addTimer( $this->completeMovementDuration, function () {
+					$this->outputOpen->set();
+				} );
+			} else if ( static::CLOSE === $message ) {
+				$this->outputOpen->reset();
+				$this->outputClose->set();
+
+				//				setTimerForEnding($board->getLoop(), $gpoClose);
+				//				/*                $board->getLoop()->addTimer(COMPLETE_SHUTTER_MOVEMENT_DURATION, function () use ($gpoClose) {
+				//										$gpoClose->reset();
+				//								});*/
+			}
+		} );
+
 	}
 }
