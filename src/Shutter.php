@@ -9,6 +9,7 @@
 namespace Devgiants\Shutter;
 
 use Devgiants\FilesystemGPIO\Model\GPIO\GPI;
+use Devgiants\FilesystemGPIO\Model\GPIO\GPIO;
 use Devgiants\FilesystemGPIO\Model\GPIO\GPO;
 use Devgiants\MosquittoClientsReactWrapper\Client\MosquittoClientsReactWrapper;
 use React\EventLoop\LoopInterface;
@@ -106,6 +107,16 @@ class Shutter {
 			$mqttTopic
 		);
 
+		$shutter->registerGpi(
+			$shutter->inputOpen,
+			$shutter->outputOpen
+		);
+
+		$shutter->registerGpi(
+			$shutter->inputClose,
+			$shutter->outputClose
+		);
+
 		// Register MQTT operations
 		$shutter->registerMqtt();
 
@@ -155,18 +166,39 @@ class Shutter {
 				$this->outputClose->reset();
 				$this->outputOpen->set();
 
-				$this->timer = $this->loop->addTimer( $this->completeMovementDuration, function () {
-					$this->outputOpen->reset();
-				} );
+				$this->setTimerForEnding($this->outputOpen);
+
 			} else if ( static::CLOSE === $message ) {
 				$this->outputOpen->reset();
 				$this->outputClose->set();
 
-				$this->timer = $this->loop->addTimer( $this->completeMovementDuration, function () {
-					$this->outputClose->reset();
-				} );
+				$this->setTimerForEnding($this->outputClose);
 			}
 		} );
+	}
 
+	/**
+	 * @param GPI $gpi
+	 * @param GPO $linkedGpo
+	 */
+	protected function registerGpi(GPI $gpi, GPO $linkedGpo): void {
+		$gpi->on(GPIO::AFTER_VALUE_CHANGE_EVENT, function() use($gpi, $linkedGpo) {
+			if($gpi->isSet()) {
+				$linkedGpo->set();
+				$this->setTimerForEnding($linkedGpo);
+			} else {
+				$linkedGpo->reset();
+			}
+		});
+	}
+
+
+	/**
+	 * @param GPO $gpo
+	 */
+	protected function setTimerForEnding(GPO $gpo) : void {
+		$this->timer = $this->loop->addTimer( $this->completeMovementDuration, function () use ($gpo) {
+			$gpo->reset();
+		} );
 	}
 }
