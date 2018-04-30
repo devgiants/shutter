@@ -201,7 +201,9 @@ class Shutter {
 	 * @param GPO $gpo
 	 */
 	protected function setTimerForEnding(GPO $gpo) : void {
-		$this->loop->cancelTimer($this->timer);
+		if(null !== $this->timer) {
+			$this->loop->cancelTimer( $this->timer );
+		}
 		$this->timer = $this->loop->addTimer( $this->completeMovementDuration, function () use ($gpo) {
 			$gpo->reset();
 		} );
