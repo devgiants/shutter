@@ -189,7 +189,7 @@ class Shutter {
 			} else {
 				$linkedGpo->reset();
 				// Trigger timer cancellation to avoid unwanted effects if numerous input trigger
-				if($this->timer instanceof TimerInterface) {
+				if(null !== $this->timer) {
 					$this->loop->cancelTimer($this->timer);
 				}
 			}
@@ -201,6 +201,7 @@ class Shutter {
 	 * @param GPO $gpo
 	 */
 	protected function setTimerForEnding(GPO $gpo) : void {
+		$this->loop->cancelTimer($this->timer);
 		$this->timer = $this->loop->addTimer( $this->completeMovementDuration, function () use ($gpo) {
 			$gpo->reset();
 		} );
