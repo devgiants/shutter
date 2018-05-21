@@ -13,7 +13,7 @@
   ],
   "require": {
     "devgiants/filesystem-gpio": "^0.2.1",
-    "devgiants/mosquitto-clients-php-react-wrapper": "^0.0.4"
+    "devgiants/mosquitto-clients-php-react-wrapper": "^0.0.5"
   },
   "minimum-stability": "dev",
   "prefer-stable": true,
