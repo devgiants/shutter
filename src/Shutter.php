@@ -106,6 +106,10 @@ class Shutter {
 		// Register MQTT operations
 		$shutter->registerMqtt();
 
+		// Secure switch
+		$shutter->secureSwitch();
+
+
 		return $shutter;
 	}
 
@@ -160,6 +164,9 @@ class Shutter {
 		// Register MQTT operations
 		$shutter->registerMqtt();
 
+		// Enforce the security
+		$shutter->secureSwitch();
+
 		return $shutter;
 	}
 
@@ -182,8 +189,8 @@ class Shutter {
 		LoopInterface $loop,
 		MosquittoClientsReactWrapper $mqttClient,
 		string $mqttTopic,
-		GPI $inputOpen = NULL,
-		GPI $inputClose = NULL
+		GPI $inputOpen = null,
+		GPI $inputClose = null
 	) {
 		$this->inputOpen                = $inputOpen;
 		$this->inputClose               = $inputClose;
@@ -203,15 +210,11 @@ class Shutter {
 		$this->mqttClient->subscribe( $this->mqttTopic, function ( $message ) {
 			$message = trim( $message );
 			if ( static::OPEN === $message ) {
-				$this->outputClose->reset();
 				$this->outputOpen->set();
-
 				$this->setTimerForEnding( $this->outputOpen );
 
 			} else if ( static::CLOSE === $message ) {
-				$this->outputOpen->reset();
 				$this->outputClose->set();
-
 				$this->setTimerForEnding( $this->outputClose );
 			}
 		} );
@@ -219,19 +222,21 @@ class Shutter {
 
 	/**
 	 * Listen to GPI change for shutter opening/closing
+	 *
 	 * @param GPI $gpi
 	 * @param GPO $linkedGpo
 	 */
 	protected function registerGpi( GPI $gpi, GPO $linkedGpo ): void {
-		if ( NULL !== $gpi ) {
+		if ( null !== $gpi ) {
 			$gpi->on( GPIO::AFTER_VALUE_CHANGE_EVENT, function () use ( $gpi, $linkedGpo ) {
 				if ( $gpi->isSet() ) {
+
 					$linkedGpo->set();
 					$this->setTimerForEnding( $linkedGpo );
 				} else {
 					$linkedGpo->reset();
 					// Trigger timer cancellation to avoid unwanted effects if numerous input trigger
-					if ( NULL !== $this->timer ) {
+					if ( null !== $this->timer ) {
 						$this->loop->cancelTimer( $this->timer );
 					}
 				}
@@ -242,14 +247,30 @@ class Shutter {
 
 	/**
 	 * Callback used for setting timer on operations
+	 *
 	 * @param GPO $gpo
 	 */
 	protected function setTimerForEnding( GPO $gpo ): void {
-		if ( NULL !== $this->timer ) {
+		if ( null !== $this->timer ) {
 			$this->loop->cancelTimer( $this->timer );
 		}
 		$this->timer = $this->loop->addTimer( $this->completeMovementDuration, function () use ( $gpo ) {
 			$gpo->reset();
 		} );
+	}
+
+
+	protected function secureSwitch() {
+		$this->outputOpen->on( GPIO::BEFORE_VALUE_CHANGE_EVENT, function () {
+			if($this->outputClose->isSet()) {
+				$this->outputClose->reset();
+			}
+		});
+
+		$this->outputClose->on( GPIO::BEFORE_VALUE_CHANGE_EVENT, function () {
+			if($this->outputOpen->isSet()) {
+				$this->outputOpen->reset();
+			}
+		});
 	}
 }
